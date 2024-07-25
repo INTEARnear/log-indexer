@@ -15,10 +15,24 @@ pub struct PushToRedisStream {
 }
 
 impl PushToRedisStream {
-    pub async fn new(connection: ConnectionManager, max_stream_size: usize) -> Self {
+    pub async fn new(
+        connection: ConnectionManager,
+        max_stream_size: usize,
+        prefix: Option<String>,
+    ) -> Self {
         Self {
-            text_stream: RedisEventStream::new(connection.clone(), LogTextEvent::ID),
-            nep297_stream: RedisEventStream::new(connection.clone(), LogNep297Event::ID),
+            text_stream: RedisEventStream::new(
+                connection.clone(),
+                format!("{}{}", prefix.clone().unwrap_or_default(), LogTextEvent::ID),
+            ),
+            nep297_stream: RedisEventStream::new(
+                connection.clone(),
+                format!(
+                    "{}{}",
+                    prefix.clone().unwrap_or_default(),
+                    LogNep297Event::ID
+                ),
+            ),
             max_stream_size,
         }
     }

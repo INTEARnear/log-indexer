@@ -43,12 +43,14 @@ impl LogEventHandler for PushToRedisStream {
     async fn handle_text(&mut self, event: LogTextEventData) {
         self.text_stream
             .emit_event(event.block_height, event, self.max_stream_size)
+            .await
             .expect("Failed to emit text event");
     }
 
     async fn handle_nep297(&mut self, event: LogNep297EventData) {
         self.nep297_stream
             .emit_event(event.block_height, event, self.max_stream_size)
+            .await
             .expect("Failed to emit nep297 event");
     }
 }

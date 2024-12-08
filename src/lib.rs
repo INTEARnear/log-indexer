@@ -1,16 +1,18 @@
 pub mod redis_handler;
 
 use async_trait::async_trait;
+use inindexer::near_indexer_primitives::types::BlockHeight;
 use inindexer::near_indexer_primitives::StreamerMessage;
 use inindexer::near_utils::EventLogData;
 use inindexer::{IncompleteTransaction, Indexer, TransactionReceipt};
-use intear_events::events::log::log_nep297::LogNep297EventData;
-use intear_events::events::log::log_text::LogTextEventData;
+use intear_events::events::log::log_nep297::LogNep297Event;
+use intear_events::events::log::log_text::LogTextEvent;
 
 #[async_trait]
 pub trait LogEventHandler: Send + Sync {
-    async fn handle_text(&mut self, event: LogTextEventData);
-    async fn handle_nep297(&mut self, event: LogNep297EventData);
+    async fn handle_text(&mut self, event: LogTextEvent);
+    async fn handle_nep297(&mut self, event: LogNep297Event);
+    async fn flush_events(&mut self, block_height: BlockHeight);
 }
 
 pub struct LogIndexer<T: LogEventHandler + Send + Sync + 'static>(pub T);
@@ -29,7 +31,7 @@ impl<T: LogEventHandler + Send + Sync + 'static> Indexer for LogIndexer<T> {
             return Ok(());
         }
         for log in receipt.receipt.execution_outcome.outcome.logs.iter() {
-            let text_event = LogTextEventData {
+            let text_event = LogTextEvent {
                 block_height: receipt.block_height,
                 block_timestamp_nanosec: receipt.block_timestamp_nanosec,
                 transaction_id: transaction.transaction.transaction.hash,
@@ -42,7 +44,7 @@ impl<T: LogEventHandler + Send + Sync + 'static> Indexer for LogIndexer<T> {
             };
             self.0.handle_text(text_event).await;
             if let Ok(event) = EventLogData::deserialize(log) {
-                let nep297_event = LogNep297EventData {
+                let nep297_event = LogNep297Event {
                     block_height: receipt.block_height,
                     block_timestamp_nanosec: receipt.block_timestamp_nanosec,
                     transaction_id: transaction.transaction.transaction.hash,
@@ -59,6 +61,11 @@ impl<T: LogEventHandler + Send + Sync + 'static> Indexer for LogIndexer<T> {
                 self.0.handle_nep297(nep297_event).await;
             }
         }
+        Ok(())
+    }
+
+    async fn process_block_end(&mut self, block: &StreamerMessage) -> Result<(), Self::Error> {
+        self.0.flush_events(block.block.header.height).await;
         Ok(())
     }
 }

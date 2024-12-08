@@ -2,33 +2,36 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use inindexer::{
-    near_indexer_primitives::types::AccountId, neardata_server::NeardataServerProvider,
-    run_indexer, BlockIterator, IndexerOptions, PreprocessTransactionsSettings,
+    near_indexer_primitives::types::AccountId, near_indexer_primitives::types::BlockHeight,
+    neardata::NeardataProvider, run_indexer, BlockIterator, IndexerOptions,
+    PreprocessTransactionsSettings,
 };
-use intear_events::events::log::{log_nep297::LogNep297EventData, log_text::LogTextEventData};
+use intear_events::events::log::{log_nep297::LogNep297Event, log_text::LogTextEvent};
 use log_indexer::{LogEventHandler, LogIndexer};
 
 #[derive(Default)]
 struct TestIndexer {
-    text_logs: HashMap<AccountId, Vec<LogTextEventData>>,
-    nep297_logs: HashMap<AccountId, Vec<LogNep297EventData>>,
+    text_logs: HashMap<AccountId, Vec<LogTextEvent>>,
+    nep297_logs: HashMap<AccountId, Vec<LogNep297Event>>,
 }
 
 #[async_trait]
 impl LogEventHandler for TestIndexer {
-    async fn handle_text(&mut self, event: LogTextEventData) {
+    async fn handle_text(&mut self, event: LogTextEvent) {
         self.text_logs
             .entry(event.account_id.clone())
             .or_default()
             .push(event);
     }
 
-    async fn handle_nep297(&mut self, event: LogNep297EventData) {
+    async fn handle_nep297(&mut self, event: LogNep297Event) {
         self.nep297_logs
             .entry(event.account_id.clone())
             .or_default()
             .push(event);
     }
+
+    async fn flush_events(&mut self, _block_height: BlockHeight) {}
 }
 
 #[tokio::test]
@@ -37,7 +40,7 @@ async fn handles_nep297_events() {
 
     run_indexer(
         &mut indexer,
-        NeardataServerProvider::mainnet(),
+        NeardataProvider::mainnet(),
         IndexerOptions {
             range: BlockIterator::iterator(124099140..=124099142),
             preprocess_transactions: Some(PreprocessTransactionsSettings {
@@ -92,7 +95,7 @@ async fn handles_text_events() {
 
     run_indexer(
         &mut indexer,
-        NeardataServerProvider::mainnet(),
+        NeardataProvider::mainnet(),
         IndexerOptions {
             range: BlockIterator::iterator(124105249..=124105254),
             preprocess_transactions: Some(PreprocessTransactionsSettings {

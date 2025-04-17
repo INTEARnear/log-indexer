@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use inindexer::{
     near_indexer_primitives::types::AccountId, near_indexer_primitives::types::BlockHeight,
-    neardata::NeardataProvider, run_indexer, BlockIterator, IndexerOptions,
+    neardata::NeardataProvider, run_indexer, BlockRange, IndexerOptions,
     PreprocessTransactionsSettings,
 };
 use intear_events::events::log::{log_nep297::LogNep297Event, log_text::LogTextEvent};
@@ -42,12 +42,14 @@ async fn handles_nep297_events() {
         &mut indexer,
         NeardataProvider::mainnet(),
         IndexerOptions {
-            range: BlockIterator::iterator(124099140..=124099142),
             preprocess_transactions: Some(PreprocessTransactionsSettings {
                 prefetch_blocks: 0,
                 postfetch_blocks: 0,
             }),
-            ..Default::default()
+            ..IndexerOptions::default_with_range(BlockRange::Range {
+                start_inclusive: 124099140,
+                end_exclusive: Some(124099142),
+            })
         },
     )
     .await
@@ -97,12 +99,14 @@ async fn handles_text_events() {
         &mut indexer,
         NeardataProvider::mainnet(),
         IndexerOptions {
-            range: BlockIterator::iterator(124105249..=124105254),
             preprocess_transactions: Some(PreprocessTransactionsSettings {
                 prefetch_blocks: 0,
                 postfetch_blocks: 0,
             }),
-            ..Default::default()
+            ..IndexerOptions::default_with_range(BlockRange::Range {
+                start_inclusive: 124105249,
+                end_exclusive: Some(124105254),
+            })
         },
     )
     .await
